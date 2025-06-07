@@ -188,6 +188,7 @@ async def get_user_focus_pattern(
             start_date = datetime.now() - timedelta(days=7)
         if not end_date:
             end_date = datetime.now()
+        logger.info(f"[focus-pattern] 쿼리 범위: start_date={start_date}, end_date={end_date}")
         cached_analysis = await cache_service.get_focus_analysis(user_id, start_date, end_date)
         if cached_analysis:
             logger.info(f"[focus-pattern] 캐시 HIT: user_id={user_id}")

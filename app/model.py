@@ -88,9 +88,9 @@ class ConcentrationModel:
                     daily_scores[date] = []
                 daily_scores[date].append(score)
             daily_average = sum([sum(scores)/len(scores) for scores in daily_scores.values()]) / len(daily_scores)
-            # 주간 트렌드 계산 (날짜별 평균)
+            # 주간 트렌드: float 리스트로 반환
             weekly_trend = [
-                {"date": date, "average": sum(scores)/len(scores)}
+                sum(scores)/len(scores)
                 for date, scores in sorted(daily_scores.items())
             ]
             # 피크 시간대(가장 집중도가 높았던 시간대) 추출
@@ -107,9 +107,9 @@ class ConcentrationModel:
                 peak_hours = [h for h, _ in peak_hours]
             else:
                 peak_hours = []
-            # 개선 영역(집중도가 낮았던 날짜)
+            # 개선 영역: 문자열 리스트로 반환
             improvement_areas = [
-                date for date, scores in daily_scores.items() if (sum(scores)/len(scores)) < 0.5
+                str(date) for date, scores in daily_scores.items() if (sum(scores)/len(scores)) < 0.5
             ]
             # 추천 생성
             recommendations = self._generate_recommendations(daily_average, health_data)
