@@ -194,7 +194,7 @@ async def get_user_focus_pattern(
             return cached_analysis
         metrics = await db.health_metrics.find({
             "user_id": user_id,
-            "timestamp": {"$gte": start_date, "$lte": end_date}
+            "date": {"$gte": start_date, "$lte": end_date}
         }).to_list(length=None)
         logger.info(f"[focus-pattern] DB 조회: user_id={user_id}, metrics_count={len(metrics)}")
         if not metrics:
