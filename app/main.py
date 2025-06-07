@@ -16,7 +16,6 @@ from .schemas import (
     FocusAnalysis
 )
 from .database import get_db, init_db, Database
-from .services.sheets_service import GoogleSheetsService
 from .services.cache_service import RedisCache
 from .config import settings
 from .websocket import manager
@@ -42,7 +41,6 @@ app.add_middleware(
 )
 
 # 서비스 초기화
-sheets_service = GoogleSheetsService()
 cache_service = RedisCache()
 model = ConcentrationModel()
 
@@ -115,13 +113,6 @@ async def predict_concentration(
             prediction
         )
         
-        # 백그라운드에서 Google Sheets 업데이트
-        background_tasks.add_task(
-            sheets_service.update_prediction,
-            metrics.user_id,
-            prediction
-        )
-        
         logger.info(f"집중도 예측 완료: {prediction['concentration_score']:.1f}")
         return prediction
         
@@ -141,12 +132,6 @@ async def store_health_metrics(
         
         # 캐시 업데이트
         await cache_service.set_health_metrics(metrics.user_id, metrics)
-        
-        # 백그라운드에서 Google Sheets 업데이트
-        background_tasks.add_task(
-            sheets_service.update_health_metrics,
-            metrics.dict()
-        )
         
         return metrics
     except Exception as e:

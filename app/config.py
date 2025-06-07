@@ -15,13 +15,6 @@ class Settings(BaseSettings):
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
     CACHE_TTL: int = int(os.getenv("CACHE_TTL", "3600"))  # 1시간
     
-    # Google Sheets 설정
-    GOOGLE_SHEETS_CREDENTIALS_FILE: str = os.getenv(
-        "GOOGLE_SHEETS_CREDENTIALS_FILE",
-        "keys/credentials.json"
-    )
-    GOOGLE_SHEETS_ID: str = os.getenv("GOOGLE_SHEETS_ID", "")
-    
     # CORS 설정
     BACKEND_CORS_ORIGINS: list = [
         "http://localhost:3000",  # React Native 개발 서버

@@ -7,7 +7,6 @@
 - Python 3.12
 - MongoDB
 - Redis
-- Google Sheets API 인증 정보
 
 ## 설치 방법
 
@@ -30,8 +29,6 @@ pip install -r requirements.txt
 MONGODB_URL=mongodb://localhost:27017
 MONGODB_DB_NAME=healthkit
 REDIS_URL=redis://localhost:6379
-GOOGLE_SHEETS_CREDENTIALS_FILE=path/to/credentials.json
-GOOGLE_SHEETS_ID=your_sheet_id
 ```
 
 ## 실행 방법
