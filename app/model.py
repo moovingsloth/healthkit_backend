@@ -1,6 +1,6 @@
 import pickle
 import numpy as np
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 
 # 로깅 설정
@@ -33,122 +33,119 @@ class ConcentrationModel:
             logger.error(f"모델 로드 중 오류 발생: {str(e)}")
             self.model = None
     
-    def predict_concentration(self, health_data: Dict[str, Any]) -> Dict[str, Any]:
+    def predict_concentration(self, health_data: List[Dict[str, Any]]) -> List[float]:
         """
         건강 데이터를 기반으로 집중도를 예측합니다.
         
         Args:
-            health_data: 건강 데이터 딕셔너리
+            health_data: 건강 데이터 리스트
             
         Returns:
-            예측 결과 딕셔너리
+            예측 결과 리스트
         """
+        if not self.model:
+            logger.warning("모델이 로드되지 않았습니다. 기본값을 반환합니다.")
+            return [0.5 for _ in health_data]
         try:
-            if self.model is None:
-                # 모델이 없는 경우 기본 예측 로직
-                return self._default_prediction(health_data)
-            
-            # 특성 추출
-            features = self._extract_features(health_data)
-            
-            # 예측 수행
-            concentration_score = self.model.predict([features])[0]
-            confidence = self.model.predict_proba([features])[0].max()
-            
-            return {
-                "concentration_score": float(concentration_score),
-                "confidence": float(confidence),
-                "recommendations": self._generate_recommendations(concentration_score, health_data)
-            }
-            
+            features = [
+                [
+                    d.get('heart_rate', 0),
+                    d.get('step_count', 0),
+                    d.get('sleep_hours', 0),
+                    d.get('stress_level', 0)
+                ] for d in health_data
+            ]
+            return self.model.predict_proba(features)[:, 1].tolist()
         except Exception as e:
             logger.error(f"예측 중 오류 발생: {str(e)}")
-            return self._default_prediction(health_data)
+            return [0.5 for _ in health_data]
     
-    def _extract_features(self, health_data: Dict[str, Any]) -> list:
-        """건강 데이터에서 특성을 추출합니다."""
-        features = []
+    def analyze_focus_pattern(self, health_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        사용자의 집중도 패턴을 분석합니다.
         
-        # 심박수 관련 특성
-        heart_rate = health_data.get('heart_rate', 70)
-        features.append(heart_rate)
-        
-        # 수면 관련 특성
-        sleep_hours = health_data.get('sleep_hours', 7)
-        features.append(sleep_hours)
-        
-        # 활동 관련 특성
-        steps = health_data.get('steps', 5000)
-        features.append(steps / 1000)  # 정규화
-        
-        # 스트레스 지수
-        stress_level = health_data.get('stress_level', 3)
-        features.append(stress_level)
-        
-        return features
+        Args:
+            health_data: 건강 데이터 리스트
+            
+        Returns:
+            집중도 분석 결과 딕셔너리
+        """
+        try:
+            if not health_data:
+                return {
+                    "daily_average": 0.0,
+                    "weekly_trend": [],
+                    "peak_hours": [],
+                    "improvement_areas": [],
+                    "recommendations": []
+                }
+            # 일별 평균 집중도 계산
+            daily_scores = {}
+            for d in health_data:
+                date = d.get('date')
+                score = d.get('concentration_score', 0.0)
+                if date not in daily_scores:
+                    daily_scores[date] = []
+                daily_scores[date].append(score)
+            daily_average = sum([sum(scores)/len(scores) for scores in daily_scores.values()]) / len(daily_scores)
+            # 주간 트렌드 계산 (날짜별 평균)
+            weekly_trend = [
+                {"date": date, "average": sum(scores)/len(scores)}
+                for date, scores in sorted(daily_scores.items())
+            ]
+            # 피크 시간대(가장 집중도가 높았던 시간대) 추출
+            hour_scores = {}
+            for d in health_data:
+                hour = d.get('hour')
+                score = d.get('concentration_score', 0.0)
+                if hour is not None:
+                    if hour not in hour_scores:
+                        hour_scores[hour] = []
+                    hour_scores[hour].append(score)
+            if hour_scores:
+                peak_hours = sorted(hour_scores.items(), key=lambda x: sum(x[1])/len(x[1]), reverse=True)[:3]
+                peak_hours = [h for h, _ in peak_hours]
+            else:
+                peak_hours = []
+            # 개선 영역(집중도가 낮았던 날짜)
+            improvement_areas = [
+                date for date, scores in daily_scores.items() if (sum(scores)/len(scores)) < 0.5
+            ]
+            # 추천 생성
+            recommendations = self._generate_recommendations(daily_average, health_data)
+            return {
+                "daily_average": daily_average,
+                "weekly_trend": weekly_trend,
+                "peak_hours": peak_hours,
+                "improvement_areas": improvement_areas,
+                "recommendations": recommendations
+            }
+        except Exception as e:
+            logger.error(f"집중 패턴 분석 중 오류 발생: {str(e)}")
+            return {
+                "daily_average": 0.0,
+                "weekly_trend": [],
+                "peak_hours": [],
+                "improvement_areas": [],
+                "recommendations": []
+            }
     
-    def _default_prediction(self, health_data: Dict[str, Any]) -> Dict[str, Any]:
-        """기본 예측 로직 (모델이 없을 때 사용)"""
-        heart_rate = health_data.get('heart_rate', 70)
-        sleep_hours = health_data.get('sleep_hours', 7)
-        stress_level = health_data.get('stress_level', 3)
-        
-        # 간단한 휴리스틱 기반 예측
-        base_score = 75
-        
-        # 심박수 조정 (60-80이 이상적)
-        if 60 <= heart_rate <= 80:
-            heart_rate_adjustment = 10
-        elif heart_rate < 60:
-            heart_rate_adjustment = -5
-        else:
-            heart_rate_adjustment = -10
-        
-        # 수면 시간 조정 (7-9시간이 이상적)
-        if 7 <= sleep_hours <= 9:
-            sleep_adjustment = 10
-        else:
-            sleep_adjustment = -5
-        
-        # 스트레스 조정 (낮을수록 좋음)
-        stress_adjustment = -stress_level * 3
-        
-        concentration_score = max(0, min(100, base_score + heart_rate_adjustment + sleep_adjustment + stress_adjustment))
-        
-        return {
-            "concentration_score": concentration_score,
-            "confidence": 0.7,
-            "recommendations": self._generate_recommendations(concentration_score, health_data)
-        }
-    
-    def _generate_recommendations(self, score: float, health_data: Dict[str, Any]) -> list:
+    def _generate_recommendations(self, daily_average: float, health_data: List[Dict[str, Any]]) -> List[str]:
         """집중도 점수와 건강 데이터를 기반으로 추천사항을 생성합니다."""
-        recommendations = []
-        
-        if score < 50:
-            recommendations.append("충분한 휴식을 취하세요.")
-            recommendations.append("명상이나 깊은 호흡을 시도해보세요.")
-        elif score < 70:
-            recommendations.append("가벼운 운동을 통해 활력을 되찾아보세요.")
-            recommendations.append("적절한 수분 섭취를 유지하세요.")
-        else:
-            recommendations.append("현재 좋은 컨디션을 유지하고 있습니다.")
-            recommendations.append("이 상태를 지속하기 위해 규칙적인 생활을 유지하세요.")
-        
-        # 개별 지표 기반 추천
-        sleep_hours = health_data.get('sleep_hours', 7)
-        if sleep_hours < 6:
-            recommendations.append("수면 시간을 늘려보세요 (권장: 7-9시간).")
-        
-        stress_level = health_data.get('stress_level', 3)
-        if stress_level > 7:
-            recommendations.append("스트레스 관리가 필요합니다. 요가나 명상을 추천합니다.")
-        
-        return recommendations
+        recs = []
+        if daily_average < 0.5:
+            recs.append("집중도가 낮습니다. 충분한 수면과 규칙적인 운동을 권장합니다.")
+        if any(d.get('sleep_hours', 0) < 6 for d in health_data):
+            recs.append("수면 시간이 부족합니다. 6시간 이상 수면을 취하세요.")
+        if any(d.get('stress_level', 0) > 7 for d in health_data):
+            recs.append("스트레스 지수가 높습니다. 명상이나 휴식을 시도해보세요.")
+        if not recs:
+            recs.append("집중 패턴이 양호합니다. 현재의 생활 습관을 유지하세요.")
+        return recs
 
 # 전역 모델 인스턴스
 concentration_model = ConcentrationModel()
 
-def get_concentration_prediction(health_data: Dict[str, Any]) -> Dict[str, Any]:
+def get_concentration_prediction(health_data: List[Dict[str, Any]]) -> List[float]:
     """집중도 예측을 위한 편의 함수"""
     return concentration_model.predict_concentration(health_data) 
