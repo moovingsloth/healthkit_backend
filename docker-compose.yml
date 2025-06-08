@@ -6,31 +6,27 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGODB_URL=mongodb://mongodb:27017
-      - MONGODB_DB_NAME=healthkit
-      - REDIS_URL=redis://redis:6379
-      - GOOGLE_SHEETS_CREDENTIALS_FILE=/app/keys/credentials.json
-      - GOOGLE_SHEETS_ID=${GOOGLE_SHEETS_ID}
-    volumes:
-      - ./keys:/app/keys
+      - MONGODB_URL=mongodb://mongodb:27017/healthkit
+      - REDIS_URL=redis://redis:6379/0
+      - GOOGLE_SHEETS_ID=${GOOGLE_SHEETS_ID:-}
+      - MODEL_PATH=model/concentration_model.pkl
     depends_on:
       - mongodb
       - redis
-
+    volumes:
+      - ./:/app
+  
   mongodb:
     image: mongo:latest
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-
+      
   redis:
     image: redis:latest
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
 
 volumes:
   mongodb_data:
-  redis_data: 

@@ -205,6 +205,79 @@ docker push registry.digitalocean.com/your-registry/healthkit-backend
 - 환경 변수 설정
 - 배포 실행
 
+## DigitalOcean App Platform 배포 가이드
+
+### 사전 준비
+
+1. [DigitalOcean 계정](https://www.digitalocean.com/) 생성
+2. [GitHub 저장소](https://github.com/) 준비
+3. [GitHub Actions](https://github.com/features/actions) 활성화
+
+### 수동 배포 방법
+
+1. DigitalOcean CLI 설치 및 인증
+```bash
+# doctl CLI 설치
+brew install doctl  # Mac
+# 또는
+snap install doctl  # Ubuntu
+
+# DigitalOcean 인증
+doctl auth init
+```
+
+2. 컨테이너 레지스트리 로그인
+```bash
+doctl registry login
+```
+
+3. 이미지 빌드 및 푸시
+```bash
+docker build -t registry.digitalocean.com/healthkit/backend:latest .
+docker push registry.digitalocean.com/healthkit/backend:latest
+```
+
+4. App Platform 앱 업데이트
+```bash
+doctl apps update YOUR_APP_ID --spec .do/app.yaml
+```
+
+### GitHub Actions 자동화 배포
+
+GitHub Actions를 통해 배포를 자동화했습니다. `master` 브랜치에 변경사항이 푸시되면 자동으로 배포됩니다.
+
+필요한 시크릿:
+- `DIGITALOCEAN_ACCESS_TOKEN`: DigitalOcean API 토큰
+- `DIGITALOCEAN_APP_ID`: DigitalOcean App Platform 앱 ID
+
+GitHub 저장소 설정에서 이 시크릿을 설정하세요:
+1. 저장소 페이지 → Settings → Secrets and variables → Actions
+2. "New repository secret" 버튼 클릭
+3. 각 시크릿 이름과 값 입력
+
+### 배포 상태 확인
+
+```bash
+# 앱 상태 확인
+doctl apps get YOUR_APP_ID
+```
+
+### 문제 해결
+
+로그 확인:
+```bash
+doctl apps logs YOUR_APP_ID
+```
+
+배포 중에 문제가 발생하면 Docker 빌드나 환경 변수 설정을 확인하세요.
+
+### 프론트엔드 연결
+
+프론트엔드 앱에서 다음 URL을 사용하여 API에 연결할 수 있습니다:
+```
+https://your-app-name.ondigitalocean.app/
+```
+
 ## API 문서
 
 서버가 실행되면 다음 URL에서 API 문서를 확인할 수 있습니다:
@@ -226,4 +299,4 @@ docker push registry.digitalocean.com/your-registry/healthkit-backend
 
 ## 라이선스
 
-MIT 
+MIT
