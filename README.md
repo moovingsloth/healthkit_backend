@@ -2,6 +2,28 @@
 
 건강 데이터를 기반으로 집중도를 예측하는 백엔드 API 서버입니다.
 
+## 시스템 아키텍처
+
+```mermaid
+graph TD
+    A[모바일 클라이언트] --> |HTTP/WebSocket 요청| B[FastAPI]
+    B --> |데이터 저장/조회| C[(MongoDB)]
+    B --> |캐싱| D[(Redis)]
+    B --> |분석 데이터| E[ML 예측 모델]
+    B --> |외부 연동| F[Google Sheets API]
+    E --> |학습 데이터 저장| C
+    
+    subgraph "백엔드 서버"
+        B
+        E
+    end
+    
+    subgraph "데이터 저장소"
+        C
+        D
+    end
+````
+
 ## 필수 요구사항
 
 - Python 3.12

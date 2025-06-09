@@ -13,12 +13,17 @@ class Settings(BaseSettings):
     API_VERSION: str = "1.0.0"
     DEBUG: bool = False
     
+    # API 서버 설정
+    API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
+    API_PORT: int = int(os.getenv("API_PORT", "8000"))
+    
     # MongoDB 설정
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-    DATABASE_NAME: str = os.getenv("DATABASE_NAME", "healthkit")
+    MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "healthkit_db")
     
     # Redis 설정
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    CACHE_TTL: int = int(os.getenv("CACHE_TTL", "3600"))  # 기본값 1시간
     
     # 모델 설정
     MODEL_PATH: str = os.getenv("MODEL_PATH", "model/concentration_model.pkl")
