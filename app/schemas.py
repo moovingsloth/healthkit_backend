@@ -126,3 +126,17 @@ class FocusAnalysis(BaseModel):
                 "improvement_areas": ["수면 품질", "스트레스 관리"]
             }
         } 
+        
+# 한 센서 시계열 (ex: bpm, temp 등)
+class TimeSeriesItem(BaseModel):
+    timestamp: datetime
+    value: float
+
+# 전체 입력: 시계열 + 현재 시간
+class RealTimeFeatureInput(BaseModel):
+    pid: str
+    current_time: datetime
+    bpm: List[TimeSeriesItem]
+    temp: List[TimeSeriesItem]
+    light: List[TimeSeriesItem]
+    interval: List[TimeSeriesItem]

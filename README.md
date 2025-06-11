@@ -2,6 +2,91 @@
 
 건강 데이터를 기반으로 집중도를 예측하는 백엔드 API 서버입니다.
 
+# HealthKit 데이터를 통한 집중도 예측
+1. HealthKit 라이브러리를 통한 데이터 불러오기
+const heartRateData = await AppleHealthKit.getHeartRateSamples(options);
+로 심박수 데이터 수집 -> mogodb에 저장
+- 데이터 형태
+[
+  {
+    id: '5FF6A068-6AE5-4704-B5D9-86B85213C6A8',  // 각 측정값의 고유 ID
+    sourceName: 'Apple Watch',                   // 데이터 소스 (기기명)
+    sourceId: '5B7A20D8-5B2E-4284-92D6-3891C5776D6B', // 소스 기기의 고유 ID
+    value: 72,                                   // 심박수 값 (bpm)
+    startDate: '2023-06-09T10:00:00.000Z',       // 측정 시작 시간
+    endDate: '2023-06-09T10:00:00.000Z',         // 측정 종료 시간 (일반적으로 시작 시간과 동일)
+    unit: 'count/min',                           // 측정 단위
+    metadata: {                                  // 추가 메타데이터 (선택적)
+      HKWasUserEntered: false                    // 사용자 직접 입력 여부
+    }
+  },
+]
+- 불러올 .pkl 모델의 input 형태와 일치하도록 수정하여 새로운 리스트 생성(raw dataset과 동일한 형태 -> 시계열의 일정 구간에 대한 통계값 형태)
+
+2. raw 데이터셋과 타입 일치 + 전처리(결측값, float32로 통일) -> mongodb 저장
+
+value -> hr, startDate -> datetime, sourceName -> source
+코드:
+hr = [
+    {
+        "id": d["id"],
+        "datetime": d["startDate"],
+        "hr": d["value"],
+        "source": d["sourceName"]
+    }
+    for d in healthkit_data
+]
+
+3. preprocessing.py에서 pkl의 피쳐 일치(dimension): 시계열 + 통계 기반 피쳐로 변환 -> mongodb 저장
+{
+  "bpm#AVG#60": 73.0,          // 평균
+  "bpm#STD#60": 4.24,          // 표준편차
+  "bpm#MED#60": 73.0,          // 중앙값
+  "bpm#SKW#60": NaN,           // 왜도 (데이터 수가 부족하면 계산 불가)
+  "bpm#KUR#60": NaN,           // 첨도 (데이터 수가 부족하면 계산 불가)
+  "bpm#ASC#60": 6,             // 절대 변화량 누적합
+  "bpm#TSC#60": 2.0            // 시계열 복잡도 (Time Series Complexity)
+  ...
+
+  + 카테고리 데이터
+}
+
+4. 저장된 ML 모델 .pkl파일 불러와 예측 수행 - 최종 모델
+lgbm_native = LGBMClassifier(
+    random_state=42,
+    learning_rate=0.03,
+    max_depth=5,               
+    num_leaves=31,              
+    min_child_samples=10,     
+    min_split_gain=0.0,         
+    reg_alpha=2.0,
+    reg_lambda=2.0,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    n_estimators=100,
+    importance_type='gain',
+    verbosity=-1               
+)
+
+결과 
+y = np.array([0, 1, 1, 0, 0, 1, 0, 1, 1, 0, ...])
+
+5. timestamp와 함께 참가자별 집중도 데이터셋에 저장
+
+6. 대쉬보드 구성을 위한 형태로 변환
+{
+    "user_id": "user123",
+    "date": "2024-01-15T00:00:00",
+    "heart_rate_avg": 72.5,
+    "heart_rate_resting": 60.0,
+    "sleep_duration": 7.5,
+    "sleep_quality": 8.2,
+    "steps_count": 9500,
+    "active_calories": 450.2
+}
+
++ 7. 프론트엔드에서 백엔드의 타입 일치 오류 해결을 위한 처리
+
 ## 시스템 아키텍처
 
 ```mermaid
